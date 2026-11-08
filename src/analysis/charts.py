@@ -45,3 +45,24 @@ def comparison_chart(ts: pd.DataFrame, cfg: SimConfig, path, title: str, strateg
     fig.tight_layout()
     fig.savefig(path, dpi=150)
     plt.close(fig)
+
+
+def adaptation_chart(ts: pd.DataFrame, cfg: SimConfig, path, title: str, strategies=None) -> None:
+    """Share of affected-region traffic sent to the degraded PSP over time."""
+    strategies = strategies or [s for s in ("rule_based", "adaptive", "adaptive_agent", "oracle_routing")
+                                if s in set(ts.strategy)]
+    fig, ax = plt.subplots(figsize=(7, 4.5))
+    for s in strategies:
+        d = ts[ts.strategy == s].groupby("t_frac")["drift_psp_share_in_region"].agg(["mean", "min", "max"])
+        ls = "--" if s.startswith("oracle") else "-"
+        ax.plot(d.index, d["mean"] * 100, color=COLORS[s], ls=ls, lw=2, label=LABELS[s])
+        ax.fill_between(d.index, d["min"] * 100, d["max"] * 100, color=COLORS[s], alpha=0.12, lw=0)
+    _mark(ax, cfg)
+    ax.set_ylabel("% of REGION_2 traffic sent to PSP_B", fontsize=10)
+    ax.set_xlabel("Share of run (red: PSP_B degrades; green: partial recovery)", fontsize=9)
+    ax.set_title(title, fontsize=11)
+    ax.legend(fontsize=9)
+    ax.grid(alpha=0.25)
+    fig.tight_layout()
+    fig.savefig(path, dpi=150)
+    plt.close(fig)
