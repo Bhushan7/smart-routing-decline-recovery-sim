@@ -1,0 +1,7 @@
+strategy,auth_rate_first_mean,auth_rate_final_mean,net_value_per_txn_mean,net_cost_per_approval_mean,retry_efficiency_mean,wasted_retries_hard_mean,soft_recovery_rate_mean,final_regret_vs_oracle_mean,auth_rate_first_min,auth_rate_final_min,net_value_per_txn_min,net_cost_per_approval_min,retry_efficiency_min,wasted_retries_hard_min,soft_recovery_rate_min,final_regret_vs_oracle_min,auth_rate_first_max,auth_rate_final_max,net_value_per_txn_max,net_cost_per_approval_max,retry_efficiency_max,wasted_retries_hard_max,soft_recovery_rate_max,final_regret_vs_oracle_max
+static,0.8634,0.8718,7.1385,1.5164,0.8735,0.0,0.0,114168.8208,0.8624,0.871,7.104,1.5094,0.8624,0,0.0,111140.57,0.8645,0.8725,7.1545,1.5204,0.8821,0,0.0,117037.86
+rule_based,0.8698,0.8775,7.1578,1.6234,0.8768,0.0,0.0,108361.1608,0.8687,0.8767,7.1243,1.6146,0.8683,0,0.0,103390.97,0.8707,0.8784,7.1827,1.6286,0.8952,0,0.0,114853.4
+adaptive_v1,0.8629,0.8701,7.1577,1.5308,0.8764,0.0,0.0,108396.1817,0.8613,0.8689,7.1271,1.5219,0.8653,0,0.0,103272.12,0.8645,0.8721,7.1792,1.5456,0.894,0,0.0,114930.33
+adaptive,0.8651,0.8723,7.1919,1.5408,0.8751,0.0,0.0,98150.7392,0.8634,0.8705,7.1512,1.5226,0.8626,0,0.0,94214.55,0.8668,0.874,7.2112,1.5588,0.8846,0,0.0,101474.17
+oracle_routing,0.8681,0.8749,7.3107,1.5124,0.8745,0.0,0.0,62495.6517,0.8669,0.874,7.2699,1.5045,0.8638,0,0.0,60732.24,0.869,0.8759,7.3325,1.5169,0.885,0,0.0,63987.64
+oracle,0.8681,0.9011,7.519,1.5324,0.3622,0.0,0.2487,0.0,0.8669,0.9002,7.4784,1.525,0.3589,0,0.2455,0.0,0.869,0.9017,7.5446,1.5375,0.3666,0,0.2521,0.0

@@ -19,7 +19,7 @@ from ..simulator.world import World
 from . import metrics
 
 BASELINES = ("static", "rule_based", "oracle_routing", "oracle")
-ALL = ("static", "rule_based", "adaptive", "oracle_routing", "oracle")
+ALL = ("static", "rule_based", "adaptive_v1", "adaptive", "oracle_routing", "oracle")
 
 
 def build_strategy(name: str, world: World):
@@ -31,11 +31,14 @@ def build_strategy(name: str, world: World):
         return OracleRouter(world), FailoverRecovery(0, 2)
     if name == "oracle":
         return OracleRouter(world), OracleRecovery(world)
-    if name == "adaptive":
-        from ..routers.adaptive import AdaptiveRouter
+    if name in ("adaptive", "adaptive_v1"):
+        from ..routers.adaptive import LEGACY_LEVELS, AdaptiveParams, AdaptiveRouter
 
+        params = AdaptiveParams.load()
+        if name == "adaptive_v1":  # Phase 3 design: 144 cells backing off to 12
+            params.levels = [list(x) for x in LEGACY_LEVELS]
         rng = np.random.default_rng(np.random.SeedSequence([world.seed, 77]))
-        return AdaptiveRouter(world.cfg, rng), FailoverRecovery(0, 2)
+        return AdaptiveRouter(world.cfg, rng, params), FailoverRecovery(0, 2)
     if name == "no_recovery":
         return StaticRouter(2), NoRecovery()
     raise KeyError(name)

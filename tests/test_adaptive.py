@@ -61,10 +61,11 @@ def test_hierarchical_backoff_prior_follows_parent():
 
     for i in range(400):
         seg = 10 + (i % 5)
-        t = Transaction(i, 0, 0, 1, 0, 0, 0, 0, 0, seg)
+        t = Transaction(i, 0, 0, 1, 1 + (i % 2), 0, 0, 0, 0, seg)  # same parent, other amount bands
         r.observe(t, 1, Outcome(i % 10 != 0, None))
         r.observe(t, 0, Outcome(i % 2 == 0, None))
-    a, b = r.posterior_params(segment=99, region=1, bin_group=0)  # unseen segment, same parent
+    unseen = Transaction(0, 0, 0, 1, 0, 0, 0, 0, 0, 99)  # unseen segment, same (region, bin) parent
+    a, b = r.posterior_params(unseen)
     mean = a / (a + b)
     assert mean[1] > 0.8 and 0.4 < mean[0] < 0.6
     assert (a + b)[1] == pytest.approx(20.0)  # strength capped at prior_strength
@@ -108,3 +109,20 @@ def test_router_never_reads_hidden_truth():
     for banned in ("p_appr", "p_eff", "oracle", "cause", "world"):
         assert banned not in src.replace("Hidden truth is never read", ""), banned
     assert RouterState  # interface import sanity
+
+
+def test_default_hierarchy_is_72_cell_and_drops_card_type():
+    r = AdaptiveRouter(SimConfig(), np.random.default_rng(0))
+    sizes = [x.shape[0] for x in r.s]
+    assert sizes == [12, 36, 72]
+    assert all("card" not in lv for lv in r.levels)
+
+
+def test_legacy_hierarchy_still_available_and_deterministic(world):
+    from src.routers.adaptive import LEGACY_LEVELS
+
+    kw = {"levels": [list(x) for x in LEGACY_LEVELS]}
+    a = run(world, make(world, 5, **kw), FailoverRecovery(0, 2), n=8_000)
+    b = run(world, make(world, 5, **kw), FailoverRecovery(0, 2), n=8_000)
+    assert np.array_equal(a.psp, b.psp)
+    assert [x.shape[0] for x in make(world, **kw).s] == [12, 144]

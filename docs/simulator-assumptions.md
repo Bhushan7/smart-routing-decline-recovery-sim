@@ -217,3 +217,8 @@ This table is a plausibility model, not a claim about real issuers.
 - The oracle router is myopic: it picks the PSP with the highest expected first-attempt net value and ignores expected recovery value.
 - Baselines (static, rule-based) recover only by failing over to PSP_A on technical-error codes.
 - Baseline charts for Gate 2 are generated on **dev seeds**, so the frozen eval seeds stay untouched until reported results.
+
+## 13. Phase 3b notes
+
+- The router's learning cells are configurable and separate from the simulator's 144 segments. Default: 12 (region, bin_group) -> 36 (+ amount band) -> 72 (+ recurring). `card_type` is not learned on. Segment count in the simulator and the guardrail are unchanged (the earlier "~48 segments" estimate in section 11 was a miscalculation; dropping both card_type and recurring gives 36).
+- `eval_seeds_v2` (3000-3011) added as a second untouched evaluation set; `eval_seeds` results stay as reported.

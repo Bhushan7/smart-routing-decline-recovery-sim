@@ -10,9 +10,12 @@ import pandas as pd  # noqa: E402
 from ..simulator.config import SimConfig  # noqa: E402
 
 COLORS = {"static": "#0072B2", "rule_based": "#E69F00", "oracle_routing": "#009E73",
-          "oracle": "#000000", "adaptive": "#D55E00", "adaptive_agent": "#CC79A7"}
-LABELS = {"static": "Static + failover", "rule_based": "Rule-based", "oracle_routing": "Oracle routing only",
-          "oracle": "Oracle (routing + recovery)", "adaptive": "Adaptive", "adaptive_agent": "Adaptive + agent"}
+          "oracle": "#000000", "adaptive": "#D55E00", "adaptive_v1": "#7F7F7F", "adaptive_agent": "#CC79A7"}
+LABELS = {
+    "static": "Static + failover", "rule_based": "Rule-based", "oracle_routing": "Oracle routing only",
+    "oracle": "Oracle (routing + recovery)", "adaptive": "Adaptive (v2, 72-cell)",
+    "adaptive_v1": "Adaptive (v1, 144-cell)", "adaptive_agent": "Adaptive + agent",
+}
 
 
 def _mark(ax, cfg: SimConfig):
@@ -49,7 +52,7 @@ def comparison_chart(ts: pd.DataFrame, cfg: SimConfig, path, title: str, strateg
 
 def adaptation_chart(ts: pd.DataFrame, cfg: SimConfig, path, title: str, strategies=None) -> None:
     """Share of affected-region traffic sent to the degraded PSP over time."""
-    strategies = strategies or [s for s in ("rule_based", "adaptive", "adaptive_agent", "oracle_routing")
+    strategies = strategies or [s for s in ("rule_based", "adaptive_v1", "adaptive", "adaptive_agent", "oracle_routing")
                                 if s in set(ts.strategy)]
     fig, ax = plt.subplots(figsize=(7, 4.5))
     for s in strategies:
