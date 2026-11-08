@@ -1,0 +1,4 @@
+comparison,net_value_diff_mean,net_value_diff_min,net_value_diff_max,seeds_a_better,n_seeds,auth_rate_diff_pts_mean,auth_rate_diff_pts_min,auth_rate_diff_pts_max
+adaptive minus static,0.02,-0.0063,0.0444,10,12,-0.184,-0.386,0.0547
+adaptive minus rule_based,0.0094,-0.0117,0.0218,9,12,-0.6992,-0.873,-0.4433
+rule_based minus static,0.0106,-0.0054,0.033,9,12,0.5152,0.4147,0.626
