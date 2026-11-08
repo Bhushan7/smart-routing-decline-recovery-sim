@@ -19,6 +19,11 @@ SEEDS = json.loads((ROOT / "evals" / "seeds.json").read_text())
 
 def smoke() -> int:
     cfg = SimConfig(n_txn=20_000)
+    _, res = runner.run_seed(cfg, SEEDS["dev_seeds"][0], ("adaptive_rules", "adaptive_agent", "oracle"))
+    rep = res["adaptive_agent"].recovery.report()
+    keys = ("declines", "ambiguous", "agent_calls", "fallbacks_total")
+    print("[smoke] agent (stub LLM, no API key):", {k: rep[k] for k in keys})
+    assert rep["agent_calls"] > 0 and rep["fallbacks_total"] == 0
     df = runner.run_many(cfg, SEEDS["dev_seeds"][:2], ROOT / "evals" / "results" / "_smoke")
     val = df.groupby("strategy").net_value_per_txn.mean()
     print(val.round(3).to_string())
@@ -85,15 +90,85 @@ def frozen_eval(out_name: str, seed_key: str) -> int:
     return 0
 
 
+def agent_dev(n_seeds: int, n_txn: int) -> int:
+    """Phase 4 agent evaluation on DEV seeds (frozen seeds are reserved for Phase 5). Stub LLM, no API key."""
+    import pandas as pd
+
+    from src.analysis import agent_eval, metrics
+
+    cfg = SimConfig(n_txn=n_txn)
+    out = ROOT / "evals" / "results" / "phase4_agent_dev"
+    out.mkdir(parents=True, exist_ok=True)
+    seeds = SEEDS["dev_seeds"][2:2 + n_seeds]
+    rows, dq_rows, cost_rows, labeled = [], [], [], []
+    for seed in seeds:
+        world, res = runner.run_seed(cfg, seed, runner.AGENT_STRATEGIES)
+        oracle = res["oracle"]
+        for name, r in res.items():
+            rows.append({"seed": seed, "strategy": name, **metrics.summarize(r),
+                         "final_regret_vs_oracle": float(metrics.regret_curve(r, oracle)[-1]),
+                         "segments_worse_than_static": len(metrics.segment_guardrail(world, r, res["static"]))
+                         if name != "static" else 0})
+        for sname in ("adaptive_agent_v1", "adaptive_agent"):
+            lab = agent_eval.labeled_set(world, res[sname])
+            lab.insert(0, "seed", seed)
+            lab.insert(1, "strategy", sname)
+            labeled.append(lab)
+            dq_rows.append({"seed": seed, "strategy": sname, **agent_eval.decision_quality(lab)})
+            cost_rows.append({"seed": seed, "strategy": sname, **agent_eval.agent_cost(res[sname])})
+        print("seed", seed, "done", flush=True)
+    df = pd.DataFrame(rows)
+    df.to_csv(out / "per_seed.csv", index=False)
+    cols = ["auth_rate_final", "net_value_per_txn", "net_cost_per_approval", "retry_efficiency", "wasted_retries_hard",
+            "soft_recovery_rate", "final_regret_vs_oracle", "segments_worse_than_static"]
+    g = df.groupby("strategy")[cols]
+    agg = g.mean().add_suffix("_mean").join(g.min().add_suffix("_min")).join(g.max().add_suffix("_max"))
+    agg = agg.reindex([x for x in runner.AGENT_STRATEGIES if x in agg.index])
+    agg.round(4).to_csv(out / "summary.csv")
+    piv = df.pivot(index="seed", columns="strategy", values="net_value_per_txn")
+    pa = df.pivot(index="seed", columns="strategy", values="auth_rate_final")
+    paired = []
+    for a, b in (("adaptive_agent", "adaptive_rules"), ("adaptive_agent_v1", "adaptive_rules"),
+                 ("adaptive_rules", "adaptive"), ("adaptive_agent", "adaptive"), ("adaptive_rules", "static_rules"),
+                 ("static_rules", "static"), ("adaptive_agent", "static")):
+        d, da = piv[a] - piv[b], (pa[a] - pa[b]) * 100
+        paired.append({"comparison": f"{a} minus {b}", "net_value_diff_mean": d.mean(), "min": d.min(), "max": d.max(),
+                       "seeds_a_better": int((d > 0).sum()), "n_seeds": len(d), "auth_pts_mean": da.mean()})
+    pd.DataFrame(paired).round(4).to_csv(out / "ablation_paired.csv", index=False)
+    dq = pd.DataFrame(dq_rows).drop(columns=["exact_match_by_true_class"]).round(4)
+    dq.to_csv(out / "decision_quality.csv", index=False)
+    pd.DataFrame(cost_rows).drop(columns=["fallback_detail"]).round(4).to_csv(out / "agent_cost.csv", index=False)
+    lab_all = pd.concat(labeled)
+    first = lab_all[(lab_all.seed == seeds[0]) & (lab_all.strategy == "adaptive_agent")]
+    first.to_csv(out / "labeled_ambiguous_declines_seed1.csv", index=False)
+    pooled = {}
+    for sname in ("adaptive_agent_v1", "adaptive_agent"):
+        sub = lab_all[lab_all.strategy == sname]
+        pooled[sname] = agent_eval.decision_quality(sub)
+        agent_eval.failure_cases(sub).to_csv(out / f"failure_cases_{sname}.csv", index=False)
+    fail = agent_eval.failure_cases(lab_all[lab_all.strategy == "adaptive_agent_v1"])
+    (out / "decision_quality_pooled.json").write_text(json.dumps(pooled, indent=1, default=float))
+    print(agg[[c for c in agg.columns if c.endswith("_mean")]].round(4).T.to_string())
+    print(pd.DataFrame(paired).round(4).T.to_string())
+    print(json.dumps(pooled, indent=1, default=float))
+    print(pd.DataFrame(cost_rows).drop(columns=["fallback_detail"]).groupby("strategy").mean(numeric_only=True)
+          .round(3).T.to_string())
+    print(fail[["true_cause", "code", "agent_action", "oracle_action", "value_gap_agent", "explanation"]].to_string())
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--smoke", action="store_true")
     ap.add_argument("--baselines", action="store_true")
     ap.add_argument("--phase3", action="store_true", help="(done) frozen eval_seeds, run once")
     ap.add_argument("--phase3b", action="store_true", help="eval_seeds_v2, run once")
+    ap.add_argument("--agent", action="store_true", help="Phase 4 agent eval on dev seeds (stub LLM)")
     ap.add_argument("--seeds", type=int, default=5)
     ap.add_argument("--n", type=int, default=300_000)
     a = ap.parse_args()
+    if a.agent:
+        return agent_dev(a.seeds, a.n)
     if a.phase3:
         return frozen_eval("phase3_eval_frozen", "eval_seeds")
     if a.phase3b:

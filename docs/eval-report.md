@@ -93,3 +93,81 @@ Paired differences over 12 seeds:
 - The router still captures under a third of what the oracle routing benchmark shows is available, and it is still behind rule-based on auth rate (-0.52 pts) because it chases net value.
 - Many segments still end up below static on auth rate. This needs a decision about whether the objective should include an auth-rate floor (a product question, not tuned here).
 - Not done: learning from retry outcomes. Retries only happen after a decline, so their outcomes are a biased sample of approval probability.
+
+## Phase 4: decline recovery and the agent (DEV seeds 1002-1006, 300k txns each)
+
+All numbers simulated. Dev seeds only: the frozen sets are reserved for the Phase 5 report.
+**Important limit: no `ANTHROPIC_API_KEY` was available, so every "agent" number below is the deterministic
+stub LLM, not Claude.** The stub reads the same four tools and applies fixed rules of thumb. It tests the
+plumbing and gives a heuristic baseline. It says nothing reliable about how Claude would perform.
+Reproduce Claude numbers yourself with `python evals/run_agent_claude.py` (see "Measuring real Claude").
+Results: `evals/results/phase4_agent_dev/`.
+
+### Design
+- **Rules layer** (code only, deterministic): hard codes stop; technical codes cascade to the healthiest other PSP; specific soft codes map to a fixed action (funds and velocity: delayed retry; issuer unavailable: short delayed retry; amount limit and auth required: stop). Ambiguous codes are the only ones it cannot settle.
+- **Ambiguous default** (rules-only baseline): delayed retry. Chosen on dev seeds 1000-1001 by comparing fixed defaults on mean value per ambiguous decline: stop 0.00, retry now +0.47, cascade +0.96, delayed **+1.82**, oracle +2.14. Always-stop would have been a strawman.
+- **Agent**: called only for ambiguous codes, with cache (code, PSP, segment bucket, context bucket) and a call cap. Four read-only tools. Guardrails in code: hard codes are never retried; invalid output, errors, refusals and cap hits fall back to the rules default and are logged.
+
+### Results (mean over 5 dev seeds)
+
+| Strategy | Net value / txn | Final auth rate | Soft recovery | Regret vs oracle | Segments worse than static |
+|---|---|---|---|---|---|
+| Static + failover | 7.138 | 87.16% | 0% | 113,597 | 0 |
+| Static + rules recovery | 7.349 | 89.71% | 24.8% | 50,336 | 0 |
+| Adaptive v2 + failover | 7.188 | 87.13% | 0% | 98,620 | 44.8 |
+| **Adaptive v2 + rules recovery** | **7.393** | 89.69% | 24.8% | 37,116 | 1.0 |
+| Adaptive v2 + stub agent v1 | 7.362 | 89.58% | 23.6% | 46,174 | 1.6 |
+| Adaptive v2 + stub agent v2 (final) | 7.390 | 89.66% | 24.4% | 37,888 | 1.0 |
+| Oracle routing only | 7.309 | 87.49% | 0% | 62,133 | 27 |
+| Oracle (routing + recovery) | 7.516 | 90.11% | 24.8% | 0 | 4 |
+
+Paired differences (net value per txn, 5 seeds):
+
+| Comparison | Mean | Seeds better | Auth |
+|---|---|---|---|
+| Rules recovery vs failover-only (adaptive) | **+0.205** | 5 of 5 | +2.56 pts |
+| Static + rules recovery vs static | +0.211 | 5 of 5 | +2.55 pts |
+| Adaptive + rules vs static + rules (routing's contribution) | +0.044 | 5 of 5 | -0.02 pts |
+| **Agent v2 vs rules-only (the ablation)** | **-0.003** | **0 of 5** | -0.03 pts |
+| Agent v1 vs rules-only | -0.030 | 0 of 5 | -0.11 pts |
+
+### Findings
+1. **Decline recovery is the big lever in this simulation, not routing.** Even simple rules lift net value by about 3% and the auth rate by about 2.5 points, roughly four times the gain from adaptive routing, and the segment guardrail problem disappears (45 segments worse than static falls to 1) because recovery lifts approvals everywhere.
+2. **The agent adds no measurable value over rules here (stub).** Agent v2 is statistically level with the rules-only baseline (-0.003, worse in every seed). That is a finding, not a bug.
+3. **The ceiling for any agent is small.** A sensible default already captures 84.5% of the oracle's value on ambiguous declines. The remaining gap is 0.337 per ambiguous decline, about 0.014 per transaction (0.2% of net value). A perfect agent could not add much in this world.
+4. **Cost is low and bounded**: 1,343 agent calls per 300k-txn run = 32.9 per 1,000 declines; the agent is invoked for 10.6% of ambiguous declines (cache serves 89.4%); 0 fallbacks. Token counts are character-based estimates for the stub (about 450 in / 47 out per call, 3.3 tool calls), so the estimated 0.09 per 1,000 declines at Opus-class list prices is indicative only. Real latency is unmeasured (stub is instant).
+5. Wasted retries on hard declines are unavoidable without a signal: about 1,650 per run are hard declines displayed as ambiguous (20% of hard declines), and every ambiguous-handling policy retries them. They cost fees and ops time only. Rules never retry a hard-coded decline (tested).
+6. Retry efficiency falls from 0.87 (failover-only retries are mostly technical, which usually work) to 0.33 with recovery, because many more retries are speculative. Net value rises anyway.
+
+### Agent decision quality vs oracle (63,480 ambiguous declines pooled)
+
+| | Exact match | Mean value gap | Share of oracle value |
+|---|---|---|---|
+| Always stop | n/a | 2.174 | 0% |
+| Rules default (delayed retry) | n/a | 0.337 | 84.5% |
+| Stub agent v1 | 51.9% | 1.027 | 52.7% |
+| Stub agent v2 (final) | 55.6% | 0.396 | 81.8% |
+
+By true cause class (v2): soft 68.9% exact; technical 1.8% (the oracle wants a cascade but nothing observable flags the PSP); hard 0.3% (oracle says stop, but hard looks identical to soft here).
+
+### Failure analysis: five real bad decisions (stub agent v2, dev seeds)
+Full rows: `failure_cases_adaptive_agent.csv`; one per distinct (true cause, agent action) pair, costliest first.
+
+| # | Case | What happened | Root cause | Fix |
+|---|---|---|---|---|
+| 1 | seed 1006, txn 171932: high amount, one-time, PSP_B, `AMBIGUOUS_DO_NOT_HONOR`, true cause PSP degraded | Agent delayed retry on the same PSP. Oracle: cascade to PSP_C. Gap 26.5 | A technical decline at the normal background rate carries no observable signal; PSP_B was not flagged | Burst detection on tech-coded and timeout rates per PSP, latency data |
+| 2 | seed 1006, txn 24901: same profile, true cause PSP timeout. Gap 21.7 | Same | Same | Same |
+| 3 | seed 1005, txn 30700: same profile, true cause network error, one recent decline. Gap 19.6 | Same, the weak "recent decline" hint pointed to velocity | Context signals are weak and overlap | Calibrated cause likelihoods from labeled history |
+| 4 | seed 1003, txn 109939 (36.6% of the run): recurring, high amount, PSP_C, true cause insufficient funds | Cascaded to PSP_D because PSP_C was flagged degraded; oracle: delayed retry. Gap 10.6 | The flag was **correct**: this is inside PSP_C's real incident window (35% to 37%). The failure is the fixed rule order: "degraded PSP" overrides the stronger recurring-payment evidence, though even during an incident most declines are not technical | Weigh the evidence (e.g. incident rate vs recurring-funds likelihood) instead of a strict priority order |
+| 5 | seed 1004, txn 720 (0.2% of the run): one-time, high amount, PSP_A, true cause velocity, one recent decline | Cascaded to PSP_B; oracle: delayed retry. Gap 10.1 | Cold start: almost no retry outcomes yet, so the estimates are the rounded priors, and with a margin of 45 a weakly positive cascade estimate wins. Estimates are also pooled across contexts, so they cannot see that this customer is velocity-prone | Context-conditional estimates, and a warm-up policy that defaults to the rules action until enough outcomes exist |
+
+The first stub version (v1) failed worse: its "stop on large one-time amounts" rule threw away value because a recovery's payoff grows with the amount (v1 captured only 52.7% of oracle value; v2 removes the rule).
+The fix to v2 was made after reading dev-seed failures, so v1 and v2 are both reported.
+
+### Measuring real Claude
+Needs an API key and spends money (rough planning figure, unmeasured: about 600 calls x 2 to 3k input tokens). Command, on a dev seed with a hard call cap:
+```
+export ANTHROPIC_API_KEY=...   # never commit it
+python evals/run_agent_claude.py --n 60000 --max-calls 600
+```
+It prints net value, decision quality vs the oracle, real tokens, latency and fallbacks, and saves the labeled set. `--stub` runs the same code path with no API. The Claude client has unit tests with a fake client (tool loop, usage, refusal, fallbacks) but **has never been run against the live API**.

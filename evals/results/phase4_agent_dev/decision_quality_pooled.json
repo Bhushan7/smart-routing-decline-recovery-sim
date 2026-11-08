@@ -1,0 +1,34 @@
+{
+ "adaptive_agent_v1": {
+  "n_ambiguous": 63480,
+  "exact_match_rate": 0.5185255198487713,
+  "kind_match_rate": 0.5310806553245117,
+  "mean_value_gap_agent": 1.027228483522883,
+  "mean_value_gap_rules_default": 0.3373457976467695,
+  "mean_value_gap_always_stop": 2.1736089682516844,
+  "share_of_oracle_value_agent": 0.5274087940715841,
+  "share_of_oracle_value_rules_default": 0.8447992244354285,
+  "wasted_retries_on_hard": 7551,
+  "exact_match_by_true_class": {
+   "hard": 0.087,
+   "soft": 0.628,
+   "tech": 0.022
+  }
+ },
+ "adaptive_agent": {
+  "n_ambiguous": 63480,
+  "exact_match_rate": 0.5559703843730309,
+  "kind_match_rate": 0.5687618147448015,
+  "mean_value_gap_agent": 0.3957449920411329,
+  "mean_value_gap_rules_default": 0.3373457976467695,
+  "mean_value_gap_always_stop": 2.1736089682516844,
+  "share_of_oracle_value_agent": 0.8179318369488301,
+  "share_of_oracle_value_rules_default": 0.8447992244354285,
+  "wasted_retries_on_hard": 8242,
+  "exact_match_by_true_class": {
+   "hard": 0.003,
+   "soft": 0.689,
+   "tech": 0.018
+  }
+ }
+}
