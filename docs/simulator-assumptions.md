@@ -79,13 +79,15 @@ value(txn) = approved * margin(amount_band) - psp_fee - retry_cost
 
 | Parameter | Default | Reasoning |
 |---|---|---|
-| margin(low / mid / high) | 1.00 / 3.00 / 8.00 | Gross margin on an approved sale before PSP fees. About 5%, 3.75%, 2.7% of the band amount, so that fees are material relative to margin. |
+| margin(low / mid / high) | 3.00 / 12.00 / 45.00 | Gross margin on an approved sale before PSP fees, about 15% of the band amount. **Revised in Phase 2** from 1 / 3 / 8, see note below. |
 | `psp_fee` | per table in 2 | fixed on every attempt, percentage on approvals |
 | `retry_cost` | 0.05 per extra attempt | ops and network overhead per retry beyond fees |
 | delayed-retry abandonment | non-recurring: 15% of customers do not return; recurring: 0% | A delayed retry on a live checkout loses some customers. |
 
 Routers optimize **expected net value**, not raw auth rate. Both are always reported.
 All of these are config values and are **frozen before any tuning**.
+
+**Phase 2 revision (flagged for Gate 2).** With the original margins 1 / 3 / 8 (2.7% to 5% of ticket), PSP fees of 1.5% to 2.4% ate most of the margin and the cheap PSP_A was the net-value best choice for 95% of transactions, so routing could not matter. At 3 / 12 / 45 the oracle's best PSP is A 44%, B 10%, C 21%, D 25% (dev seed 1000, pre-drift and drift included). The fee table is unchanged.
 
 Open consequence to be aware of: with these margins a cheap PSP can beat a premium one on net value for
 low-amount segments even at a lower approval rate. That is intended.
@@ -206,3 +208,12 @@ This table is a plausibility model, not a claim about real issuers.
 ## 11. Still open
 
 8. Segment count: **keep 144 segments** with hierarchical backoff at 300k (option a). Fall back to ~48 segments (drop `card_type` and `recurring` from the key) only if Phase 3 shows the smallest segments cannot be learned, and ask first.
+
+## 12. Phase 2 implementation notes
+
+- Customer decline history is a pre-generated per-transaction `recent_declines` (0 to 3) drawn from a latent per-customer propensity. It is not updated dynamically from router outcomes (keeps the stream identical across routers).
+- The rule-based router uses coarse rules keyed by (region, amount_band, recurring), 18 cells, fitted from the first 10% of dev seed 1000 with uniform-random PSP traffic and observed outcomes only. 144-cell rules would be too noisy at 30k calibration transactions.
+- Two oracle variants: `oracle` (best PSP plus oracle recovery action; full upper bound) and `oracle_routing` (best PSP plus the same technical failover as the baselines; isolates routing regret).
+- The oracle router is myopic: it picks the PSP with the highest expected first-attempt net value and ignores expected recovery value.
+- Baselines (static, rule-based) recover only by failing over to PSP_A on technical-error codes.
+- Baseline charts for Gate 2 are generated on **dev seeds**, so the frozen eval seeds stay untouched until reported results.
