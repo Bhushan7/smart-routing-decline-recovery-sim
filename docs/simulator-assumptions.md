@@ -24,8 +24,8 @@ code, own history, own observed outcomes). Only the oracle router and the evals 
 - Segment = bin_group x card_type x region x amount_band x recurring = 4x2x3x3x2 = **144 segments**.
 - Segment mix is deliberately **uneven** (product of skewed marginals, e.g. REGION_1 50%, REGION_2 30%,
   REGION_3 20%; recurring 25%; high-amount 10%). Smallest segments get roughly 0.1% of traffic.
-- **Default volume: 100k transactions per run** (decided at Gate 1; config range 100k to 500k).
-- Learnability check: 144 segments x 4 PSPs = 576 arms. At 100k, the mean arm sees only ~170 trials under
+- **Default volume: 300k transactions per run** (decided at Gate 1; config range 100k to 500k; 100k is a fast mode for smoke tests).
+- Learnability check: 144 segments x 4 PSPs = 576 arms. At 300k, the mean arm sees ~500 trials under
   uniform allocation, but the smallest segments see far fewer. Plan: hierarchical backoff (see 5) and
   a documented minimum-trials rule. If Phase 3 shows the smallest segments cannot be learned, I will
   **merge segments (e.g. drop the card_type split in rare cells), not cut volume**, per the kickoff.
@@ -195,7 +195,7 @@ This table is a plausibility model, not a claim about real issuers.
 
 ## 10. Gate 1 decisions
 
-1. Volume: **100k per run** for now. This makes segment learning sparse, see 1 and Q8.
+1. Volume: **300k per run** (revised from an initial 100k, which made segment learning too sparse). 100k stays available as a fast mode.
 2. Margins and fees: accepted as drafted.
 3. **One** recovery attempt per declined transaction.
 4. Technical-incident window: **included** as a secondary drift event.
@@ -205,7 +205,4 @@ This table is a plausibility model, not a claim about real issuers.
 
 ## 11. Still open
 
-8. **Segment count at 100k.** 144 segments x 4 PSPs is thin at this volume (~170 trials per arm on average, far fewer in small segments). Options:
-   (a) keep 144 segments and rely on hierarchical backoff (no change to scope, slower and noisier learning);
-   (b) reduce to ~48 segments by dropping `card_type` and `recurring` from the segment key (they stay as hidden effects and observable context).
-   Recommendation: (a) first, with a Phase 3 check; fall back to (b) if the smallest segments cannot be learned. Your call, since it changes results.
+8. Segment count: **keep 144 segments** with hierarchical backoff at 300k (option a). Fall back to ~48 segments (drop `card_type` and `recurring` from the key) only if Phase 3 shows the smallest segments cannot be learned, and ask first.
