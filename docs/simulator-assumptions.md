@@ -24,8 +24,8 @@ code, own history, own observed outcomes). Only the oracle router and the evals 
 - Segment = bin_group x card_type x region x amount_band x recurring = 4x2x3x3x2 = **144 segments**.
 - Segment mix is deliberately **uneven** (product of skewed marginals, e.g. REGION_1 50%, REGION_2 30%,
   REGION_3 20%; recurring 25%; high-amount 10%). Smallest segments get roughly 0.1% of traffic.
-- **Default volume: 300k transactions per run** (config range 100k to 500k).
-- Learnability check: 144 segments x 4 PSPs = 576 arms. At 300k, the mean arm sees ~500 trials under
+- **Default volume: 100k transactions per run** (decided at Gate 1; config range 100k to 500k).
+- Learnability check: 144 segments x 4 PSPs = 576 arms. At 100k, the mean arm sees only ~170 trials under
   uniform allocation, but the smallest segments see far fewer. Plan: hierarchical backoff (see 5) and
   a documented minimum-trials rule. If Phase 3 shows the smallest segments cannot be learned, I will
   **merge segments (e.g. drop the card_type split in rare cells), not cut volume**, per the kickoff.
@@ -193,12 +193,19 @@ This table is a plausibility model, not a claim about real issuers.
   `evals/seeds.json` in Phase 2, never tuned on.
 - Each run writes seed, git commit hash, and full config into its output folder.
 
-## 10. Open questions for you
+## 10. Gate 1 decisions
 
-1. **Volume:** default 300k per run OK? (Larger runs are slower for the multi-seed eval, 12 seeds x 5 routers.)
-2. **Margins and fees (3 and 2):** accept these defaults, or do you want a different margin/fee ratio? It decides how often "cheap PSP" beats "premium PSP".
-3. **One recovery attempt per decline** (my recommendation) vs allowing up to two. Two is more realistic but doubles the action space.
-4. **Technical-incident window** as a secondary drift event for PSP-health tests: include (recommended) or defer?
-5. **Reliable hard codes:** should some hard declines surface as ambiguous only (as drafted) or also sometimes as mislabeled soft codes? Recommendation: ambiguous only; mislabeling stays out of scope.
-6. **Customer history:** is a ~50k customer pool with a rolling decline history enough for "decline history", or do you want something richer?
-7. **Rule-based baseline** learned from the first 10% of a dev-seed run: acceptable, or do you prefer hand-written rules from a stated heuristic?
+1. Volume: **100k per run** for now. This makes segment learning sparse, see 1 and Q8.
+2. Margins and fees: accepted as drafted.
+3. **One** recovery attempt per declined transaction.
+4. Technical-incident window: **included** as a secondary drift event.
+5. Hard declines surface as ambiguous only; no mislabeled soft codes.
+6. Customer pool (~50k, rolling decline history): accepted.
+7. Rule-based baseline learned from the first 10% of a dev-seed run: accepted.
+
+## 11. Still open
+
+8. **Segment count at 100k.** 144 segments x 4 PSPs is thin at this volume (~170 trials per arm on average, far fewer in small segments). Options:
+   (a) keep 144 segments and rely on hierarchical backoff (no change to scope, slower and noisier learning);
+   (b) reduce to ~48 segments by dropping `card_type` and `recurring` from the segment key (they stay as hidden effects and observable context).
+   Recommendation: (a) first, with a Phase 3 check; fall back to (b) if the smallest segments cannot be learned. Your call, since it changes results.
