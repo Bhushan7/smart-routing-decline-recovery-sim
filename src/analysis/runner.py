@@ -20,6 +20,8 @@ from . import metrics
 
 BASELINES = ("static", "rule_based", "oracle_routing", "oracle")
 ALL = ("static", "rule_based", "adaptive_v1", "adaptive", "oracle_routing", "oracle")
+AGENT_STRATEGIES = ("static", "static_rules", "adaptive", "adaptive_rules", "adaptive_agent_v1", "adaptive_agent",
+                    "oracle_routing", "oracle")
 
 
 def build_strategy(name: str, world: World):
@@ -39,6 +41,19 @@ def build_strategy(name: str, world: World):
             params.levels = [list(x) for x in LEGACY_LEVELS]
         rng = np.random.default_rng(np.random.SeedSequence([world.seed, 77]))
         return AdaptiveRouter(world.cfg, rng, params), FailoverRecovery(0, 2)
+    if name == "static_rules":
+        from ..agent.agent import AgentRecovery
+
+        return StaticRouter(2), AgentRecovery(world.cfg, mode="rules")
+    if name in ("adaptive_rules", "adaptive_agent", "adaptive_agent_v1"):
+        from ..agent.agent import AgentRecovery
+        from ..agent.llm import StubLLM
+        from ..routers.adaptive import AdaptiveParams, AdaptiveRouter
+
+        rng = np.random.default_rng(np.random.SeedSequence([world.seed, 77]))  # same stream as "adaptive"
+        mode = "rules" if name == "adaptive_rules" else "agent"
+        llm = StubLLM("v1" if name == "adaptive_agent_v1" else "v2")
+        return AdaptiveRouter(world.cfg, rng, AdaptiveParams.load()), AgentRecovery(world.cfg, llm=llm, mode=mode)
     if name == "no_recovery":
         return StaticRouter(2), NoRecovery()
     raise KeyError(name)
@@ -110,4 +125,5 @@ def aggregate(df: pd.DataFrame) -> pd.DataFrame:
             "retry_efficiency", "wasted_retries_hard", "soft_recovery_rate", "final_regret_vs_oracle"]
     g = df.groupby("strategy")[cols]
     agg = g.mean().add_suffix("_mean").join(g.min().add_suffix("_min")).join(g.max().add_suffix("_max"))
-    return agg.reindex([s for s in ALL if s in agg.index])
+    order = list(dict.fromkeys(ALL + AGENT_STRATEGIES))
+    return agg.reindex([s for s in order if s in agg.index])

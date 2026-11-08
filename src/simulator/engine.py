@@ -23,6 +23,7 @@ class SimResult:
     action: np.ndarray  # recovery action kind, -1 if no decline, STOP if declined and not retried
     retried: np.ndarray
     retry_ok: np.ndarray
+    recovery: object = None  # the recovery policy instance (for logs and agent reports)
 
     @property
     def action_names(self):
@@ -43,6 +44,8 @@ def run(world: World, router: Router, recovery: RecoveryPolicy, n: int | None = 
     retried = [False] * n
     retry_ok = [False] * n
     margin = world.lists()["margin"]
+    obs_attempt = getattr(recovery, "observe_attempt", None)
+    obs_retry = getattr(recovery, "observe_retry", None)
 
     for i in range(n):
         state.t = i
@@ -56,12 +59,16 @@ def run(world: World, router: Router, recovery: RecoveryPolicy, n: int | None = 
             fees[i] = fixed + pct
             value[i] = margin[i] - fees[i]
             router.observe(txn, psp, Outcome(True, None))
+            if obs_attempt:
+                obs_attempt(txn, psp, Outcome(True, None))
             continue
         fees[i] = fixed
         value[i] = -fixed
         cause_a[i] = cause
         code = world.observed_code(i, cause)
         router.observe(txn, psp, Outcome(False, code))
+        if obs_attempt:
+            obs_attempt(txn, psp, Outcome(False, code))
         action = recovery.decide(txn, psp, code, state)
         action_a[i] = action.kind
         if action.kind == STOP:
@@ -69,6 +76,8 @@ def run(world: World, router: Router, recovery: RecoveryPolicy, n: int | None = 
         if action.kind == CASCADE and (action.target_psp is None or action.target_psp == psp):
             raise ValueError("cascade needs a different target PSP")
         ok, dv, fee, rc = world.execute(i, psp, cause, action)
+        if obs_retry:
+            obs_retry(txn, psp, code, action, ok)
         retried[i] = True
         retry_ok[i] = ok
         final_ok[i] = ok
@@ -81,5 +90,5 @@ def run(world: World, router: Router, recovery: RecoveryPolicy, n: int | None = 
         final_ok=np.asarray(final_ok, bool), value=np.asarray(value, np.float64),
         fees=np.asarray(fees, np.float64), retry_cost=np.asarray(rcost, np.float64),
         cause=np.asarray(cause_a, np.int8), action=np.asarray(action_a, np.int8),
-        retried=np.asarray(retried, bool), retry_ok=np.asarray(retry_ok, bool),
+        retried=np.asarray(retried, bool), retry_ok=np.asarray(retry_ok, bool), recovery=recovery,
     )
