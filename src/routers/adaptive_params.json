@@ -1,0 +1,10 @@
+{
+ "note": "Tuned on DEV seeds 1005-1007 (18-setting grid), checked on dev hold-out 1010-1012. Differences between settings are within seed noise (~0.01 net value per txn). Frozen eval seeds never used. traffic_cap and cap_window are guardrails, not tuned.",
+ "params": {
+  "decay": 0.999,
+  "prior_strength": 5.0,
+  "explore_floor": 0.01,
+  "traffic_cap": 0.6,
+  "cap_window": 2000
+ }
+}
