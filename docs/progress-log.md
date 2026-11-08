@@ -15,3 +15,8 @@
 - Done: Thompson sampling router with hierarchical backoff, discounting, traffic cap, exploration floor; tuning on dev seeds only; one run on the frozen eval seeds; 8 new tests (27 total); adaptation chart and paired-difference tables.
 - Result: adaptive beats static by +0.28% net value (10/12 seeds) but captures only ~10% of the oracle routing gap, lowers auth rate by 0.18 pts, and 50 segments are worse than static. Diagnosis in `docs/eval-report.md`.
 - Next: Gate 3 decision (see open options in the PR).
+
+## Session 4: Phase 3b (option B)
+- Done: configurable learning hierarchy; compared 7 structures on dev seeds, confirmed on dev hold-out; added untouched seed set 3000-3011; one run of all strategies (plus v1 router for before/after).
+- Result: adaptive v2 beats static by +0.75% net value in 12/12 seeds, captures 31% of the oracle routing gap (v1: 11%), auth rate no longer below static. Still 42 segments worse than static.
+- Next: Gate 3 re-review. Phase 4 (decline-recovery agent) after approval.
