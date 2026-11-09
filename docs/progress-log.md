@@ -20,3 +20,9 @@
 - Done: configurable learning hierarchy; compared 7 structures on dev seeds, confirmed on dev hold-out; added untouched seed set 3000-3011; one run of all strategies (plus v1 router for before/after).
 - Result: adaptive v2 beats static by +0.75% net value in 12/12 seeds, captures 31% of the oracle routing gap (v1: 11%), auth rate no longer below static. Still 42 segments worse than static.
 - Next: Gate 3 re-review. Phase 4 (decline-recovery agent) after approval.
+
+## Session 5: Phase 4 decline recovery and agent
+- Done: observable state, rules layer, four tools, LLM wrapper (Claude client + deterministic stub), agent with cache/cap/fallbacks/guardrail, rules-only ablation, static+rules strategy, labeled ambiguous-decline set, agent-vs-oracle eval, failure analysis, real-Claude eval script, 23 new tests (52 total), CI smoke now exercises the agent.
+- Result (dev seeds, stub LLM only): rules recovery = +3% net value, +2.5 auth pts; stub agent = no gain over rules (-0.003, 0/5 seeds); agent ceiling is about 0.2% of net value.
+- Blocker: no ANTHROPIC_API_KEY here, so Claude itself is unmeasured. The client is unit-tested with a fake client only.
+- Next: Gate 4 decision.

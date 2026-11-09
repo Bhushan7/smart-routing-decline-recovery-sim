@@ -222,3 +222,13 @@ This table is a plausibility model, not a claim about real issuers.
 
 - The router's learning cells are configurable and separate from the simulator's 144 segments. Default: 12 (region, bin_group) -> 36 (+ amount band) -> 72 (+ recurring). `card_type` is not learned on. Segment count in the simulator and the guardrail are unchanged (the earlier "~48 segments" estimate in section 11 was a miscalculation; dropping both card_type and recurring gives 36).
 - `eval_seeds_v2` (3000-3011) added as a second untouched evaluation set; `eval_seeds` results stay as reported.
+
+## 14. Phase 4 notes (decline recovery and agent)
+
+- `delay_seconds` is informational. In the simulator a delayed retry differs from an immediate one only by its success probability and a 15% abandonment for non-recurring customers; waiting itself costs nothing. This makes "delayed retry" a strong default for ambiguous declines, which shrinks any agent's headroom. A real delay has costs (customer friction, stale auth, held inventory) that are not modeled.
+- `seconds_since_last_attempt` is always 0: there is at most one recovery attempt per transaction.
+- Hard declines show as ambiguous 20% of the time, so retrying ambiguous declines wastes some retries on hard ones. Not avoidable from observables.
+- Technical declines show as ambiguous 25% of the time. Outside incident windows nothing observable identifies them.
+- The stub LLM's rules encode qualitative structure of this simulated world (recurring: funds, recent declines: velocity, degraded PSP: technical). Its scores overstate what a model that does not know the simulator would achieve, and understate nothing.
+- `estimate_retry_success` blends rounded rule-of-thumb priors (not the simulator's table) with observed retry outcomes per (code family, action), pooled across contexts. Expected net value uses known fees and margins.
+- Rules-only baseline default for ambiguous codes is `delayed`, chosen on dev seeds 1000-1001.

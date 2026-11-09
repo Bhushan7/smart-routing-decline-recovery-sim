@@ -1,0 +1,9 @@
+strategy,auth_rate_final_mean,net_value_per_txn_mean,net_cost_per_approval_mean,retry_efficiency_mean,wasted_retries_hard_mean,soft_recovery_rate_mean,final_regret_vs_oracle_mean,segments_worse_than_static_mean,auth_rate_final_min,net_value_per_txn_min,net_cost_per_approval_min,retry_efficiency_min,wasted_retries_hard_min,soft_recovery_rate_min,final_regret_vs_oracle_min,segments_worse_than_static_min,auth_rate_final_max,net_value_per_txn_max,net_cost_per_approval_max,retry_efficiency_max,wasted_retries_hard_max,soft_recovery_rate_max,final_regret_vs_oracle_max,segments_worse_than_static_max
+static,0.8716,7.1376,1.5164,0.8749,0.0,0.0,113597.14,0.0,0.8709,7.1267,1.5142,0.8667,0,0.0,111662.92,0,0.8723,7.1488,1.518,0.8811,0,0.0,115491.8,0
+static_rules,0.8971,7.3485,1.5418,0.3416,1673.8,0.2484,50336.26,0.0,0.8962,7.3365,1.5396,0.339,1628,0.2462,48201.48,0,0.8976,7.3638,1.5438,0.3433,1756,0.2508,53212.91,0
+adaptive,0.8713,7.1875,1.5308,0.8774,0.0,0.0,98619.728,44.8,0.87,7.1707,1.5258,0.8683,0,0.0,95718.47,40,0.8736,7.2054,1.5327,0.886,0,0.0,102242.95,50
+adaptive_rules,0.8969,7.3925,1.555,0.3345,1653.8,0.2479,37116.238,1.0,0.8956,7.3768,1.55,0.3332,1601,0.247,34511.88,0,0.8988,7.4099,1.5573,0.3368,1702,0.2486,40732.16,2
+adaptive_agent_v1,0.8958,7.3623,1.5501,0.3362,1510.2,0.2363,46174.012,1.6,0.8945,7.3452,1.5454,0.3333,1453,0.2337,42550.22,1,0.8978,7.3826,1.5529,0.3399,1562,0.2377,49398.6,3
+adaptive_agent,0.8966,7.39,1.555,0.332,1648.4,0.2435,37887.84,1.0,0.8954,7.373,1.5505,0.3293,1593,0.2409,35018.31,0,0.8985,7.4082,1.5574,0.3348,1701,0.2445,41440.03,2
+oracle_routing,0.8749,7.3091,1.512,0.8768,0.0,0.0,62132.718,27.0,0.8743,7.297,1.5095,0.8651,0,0.0,61440.72,25,0.8756,7.3198,1.5148,0.8879,0,0.0,63336.16,28
+oracle,0.9011,7.5163,1.5319,0.3615,0.0,0.2481,0.0,4.0,0.9004,7.5024,1.5289,0.3586,0,0.2467,0.0,2,0.9016,7.5253,1.5343,0.3642,0,0.2495,0.0,6

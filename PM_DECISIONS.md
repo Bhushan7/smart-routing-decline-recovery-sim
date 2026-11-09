@@ -22,6 +22,11 @@ Notes (Phase 3, adaptive router, all simulated):
 - Caveat: dropping card_type works because the simulated card effect is small. In production that is an empirical question per merchant; the hierarchy is configurable for that reason.
 - Cost of learning: the router is worse than static for roughly the first 30% of a run. At 300k transactions this learning cost eats most of the gain.
 ### Agent autonomy vs rules
+Notes (Phase 4, all simulated, agent numbers are from the stub LLM, not Claude):
+- Hard codes are never retried. This is enforced in code after the agent returns, and the agent is not even called for them.
+- The agent is called only for ambiguous codes (about 30% of declines), with caching and a hard call cap; any invalid output, error or refusal falls back to the rules default and is logged. Cost: about 33 calls per 1,000 declines.
+- Honest result so far: deterministic rules capture most of the value (about +3% net value, +2.5 auth points). A simple "delayed retry" default already captures 84.5% of the oracle value on ambiguous declines, so an agent's ceiling here is about 0.2% of net value. The stub agent added nothing measurable. Whether Claude adds value is untested (no API key available).
+- Implication for the product case: lead with the rules layer and the guardrails; position the agent as a bounded add-on for the long tail, justified only if a real-model eval beats the rules default by more than its cost.
 
 ## 5. Success metrics
 Primary / secondary / guardrail (incl. segment-level: no segment worse while the average improves).

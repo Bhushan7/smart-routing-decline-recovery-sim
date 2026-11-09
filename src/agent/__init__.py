@@ -1,1 +1,1 @@
-"""Placeholder; implemented in a later phase."""
+"""Decline-recovery agent: rules layer, tools, LLM wrapper (Claude + deterministic stub)."""
