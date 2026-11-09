@@ -1,6 +1,6 @@
 PY ?= python3
 
-.PHONY: setup test lint eval demo eval-agent-stub eval-agent-claude
+.PHONY: setup test lint eval demo eval-final eval-agent-stub eval-agent-claude
 
 setup:
 	$(PY) -m pip install -r requirements-dev.txt
@@ -15,7 +15,10 @@ eval:
 	$(PY) evals/run_evals.py
 
 demo:
-	@echo "Dashboard arrives in Phase 5. Nothing to demo yet."
+	streamlit run src/app/dashboard.py
+
+eval-final:
+	$(PY) evals/run_evals.py --phase5
 
 eval-agent-stub:
 	$(PY) evals/run_evals.py --agent --seeds 2
