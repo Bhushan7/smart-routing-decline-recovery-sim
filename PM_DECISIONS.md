@@ -29,6 +29,7 @@ Notes (Phase 4, all simulated, agent numbers are from the stub LLM, not Claude):
 - Implication for the product case: lead with the rules layer and the guardrails; position the agent as a bounded add-on for the long tail, justified only if a real-model eval beats the rules default by more than its cost.
 
 ## 5. Success metrics
+Results so far (Phase 5, simulated, 12 frozen seeds, agent = stub LLM): primary = net value per transaction (+3.5% vs static, 95% CI 3.5 to 3.6) and final auth rate (+2.54 points); secondary = soft-decline recovery (24.2%), retry efficiency (0.33 vs 0.87 for failover-only), regret vs oracle (-66% vs static), adaptation speed (median 5,864 region txns); guardrail = segment-level auth rate (adaptive routing alone leaves 41.5 of 144 segments worse than static, recovery brings it to 2.4), plus the agent ablation (agent minus rules-only = -0.003, no value).
 Primary / secondary / guardrail (incl. segment-level: no segment worse while the average improves).
 
 ## 6. Risks and failure modes

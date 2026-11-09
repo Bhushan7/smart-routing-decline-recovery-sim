@@ -26,3 +26,9 @@
 - Result (dev seeds, stub LLM only): rules recovery = +3% net value, +2.5 auth pts; stub agent = no gain over rules (-0.003, 0/5 seeds); agent ceiling is about 0.2% of net value.
 - Blocker: no ANTHROPIC_API_KEY here, so Claude itself is unmeasured. The client is unit-tested with a fake client only.
 - Next: Gate 4 decision.
+
+## Session 6: Phase 5 final results and dashboard
+- Found and fixed: CI had been red on main since the Phase 4 merge (pinned ruff 0.7.4 flags UP038; I had been linting with a newer ruff). Lint now run with the pinned version via `uvx ruff@0.7.4 check .`. CI green on the fix commit.
+- Done: one frozen run of 9 strategies on seeds 3000-3011 (script refuses to overwrite), summary tables with min/max and 95% bootstrap CIs, paired differences, headline numbers, charts (router comparison, adaptation, headline metrics, segment guardrail, agent cost), Streamlit dashboard reading saved results (4 tabs, headless-tested, phone-width checked), eval report with methodology and limitations.
+- Headline (simulated, stub agent): +2.54 auth points vs static, 24.2% soft recovery, failed retries -48% vs naive retry-everything. Almost all of it comes from rules recovery; the stub agent is -0.003 vs rules-only (0/12 seeds).
+- Next: Gate 5 approval of the numbers. Phase 6 (README, architecture, PM decisions, clean-clone check, pre-publish checklist) only after approval.

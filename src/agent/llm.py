@@ -153,7 +153,7 @@ def parse_decision(text: str, psp: int):
         raise ValueError("invalid action")
     kind = ACTION_NAMES.index(obj["action"])
     conf = obj.get("confidence")
-    if not isinstance(conf, (int, float)) or isinstance(conf, bool) or not 0 <= conf <= 1:
+    if not isinstance(conf, int | float) or isinstance(conf, bool) or not 0 <= conf <= 1:
         raise ValueError("invalid confidence")
     target, delay = None, 0
     if kind == CASCADE:

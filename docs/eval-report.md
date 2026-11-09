@@ -1,6 +1,36 @@
 # Eval report
 
-All numbers are **simulated** (synthetic data, simplified decline model). Work in progress: Phases 4 to 5 add the agent and final tables.
+All numbers in this repository are **simulated**: synthetic traffic, invented PSPs, a simplified decline model.
+Nothing here describes real-world performance. The "agent" results use a **deterministic stub LLM, not Claude**.
+
+Contents: [Methodology](#methodology) | [Final results (Phase 5)](#final-results-phase-5) | [Limitations](#limitations) |
+history: [Phase 3](#phase-3-adaptive-router-frozen-eval-seeds-2000-2011-300k-txns-each-run-once) ·
+[Phase 3b](#phase-3b-improving-the-adaptive-routers-learning-structure-new-seed-set-run-once) ·
+[Phase 4](#phase-4-decline-recovery-and-the-agent-dev-seeds-1002-1006-300k-txns-each)
+
+## Methodology
+
+- **Simulator**: 300k transactions per run, 144 segments, 4 PSPs with hidden per-segment approval probabilities, a drift event
+  (PSP_B degrades in REGION_2 at 60% of the run, partly recovers at 80%), a PSP_C incident window (35% to 37%), and hidden
+  decline causes. Details and every assumption: `docs/simulator-assumptions.md`.
+- **Common random numbers**: every strategy sees the same traffic and the same pre-drawn luck, so comparisons are paired.
+- **Objective**: net value per transaction = margin on approvals - PSP fees - retry costs. Auth rate is always reported next to it.
+- **Strategies**: Static + failover (PSP_C primary, PSP_A on technical errors); Rule-based (18 coarse cells, fitted from observable
+  early dev-seed traffic); Naive retry-everything (reference only); Static + rules recovery; Adaptive router (Thompson sampling,
+  failover-only recovery); Adaptive + rules-only recovery (the ablation); Adaptive + agent (router 4, stub LLM);
+  Oracle routing only; Oracle (routing + recovery). Oracles use hidden truth and exist only as benchmarks.
+- **Statistics**: mean across seeds, min to max, and a 95% percentile bootstrap interval of the mean (10,000 resamples).
+  Paired differences are computed seed by seed. Intervals reflect seed-to-seed variance only. They cannot capture the risk
+  that the simulator itself is wrong, so they are narrow by construction and should not be over-read.
+- **Seed policy and honest disclosure** (`evals/seeds.json`):
+
+| Seed set | Used for |
+|---|---|
+| dev 1000-1019 | everything during development: the rule-based table (1000), router tuning (1005-1007, hold-out 1010-1012), the rules default for ambiguous codes (1000-1001), the Phase 4 agent evaluation and stub revision (1002-1006) |
+| eval 2000-2011 | Phase 3 results for the first router design only. The second design was motivated partly by seeing them, so they are **not** used for final results |
+| eval v2 3000-3011 | Phase 3b router comparison, then this final evaluation. Nothing was changed after seeing the Phase 3b numbers: the router, its parameters and the rules and stub agent defaults were all fixed on dev seeds before this run |
+
+The final run executed once (the script refuses to overwrite its output folder).
 
 ## Phase 3: adaptive router (frozen eval seeds 2000-2011, 300k txns each, run once)
 
@@ -171,3 +201,88 @@ export ANTHROPIC_API_KEY=...   # never commit it
 python evals/run_agent_claude.py --n 60000 --max-calls 600
 ```
 It prints net value, decision quality vs the oracle, real tokens, latency and fallbacks, and saves the labeled set. `--stub` runs the same code path with no API. The Claude client has unit tests with a fake client (tool loop, usage, refusal, fallbacks) but **has never been run against the live API**.
+
+## Final results (Phase 5)
+
+Seeds 3000-3011 (12), 300k transactions each. Raw per-seed outputs, charts and the dashboard source data are in
+`evals/results/phase5_final_eval/`. View with `make demo`.
+
+### Headline (simulated, stub LLM agent)
+
+> Adaptive routing plus decline recovery improved simulated auth rate by **2.54 points** (95% CI 2.49 to 2.59) over static
+> routing and recovered **24.2%** of soft declines (static: 0%). Compared with a naive retry-everything policy it cut failed
+> retries by **48%** and retries on hard declines by **80%**.
+
+Read this together with four qualifications, all backed by the tables below:
+1. **Almost all of the gain comes from deterministic decline-recovery rules, not from routing and not from the agent.** Rules-only recovery alone adds +2.52 auth points over the adaptive router with failover-only recovery.
+2. **The agent adds nothing measurable over rules** in this simulation: -0.003 net value per transaction, worse in 12 of 12 seeds (stub LLM; Claude is untested).
+3. **Retries on hard declines increase against static** (0 to about 1,643 per run), because hard declines that show up under an ambiguous code cannot be told apart from soft ones. They cost fees and ops time only. The "cut" figures are against a naive policy that retries everything, a reference, not a recommendation.
+4. Adaptive routing alone is a small gain (+0.75% net value, auth rate unchanged) and leaves 41.5 of 144 segments worse than static on auth rate; adding recovery brings that to about 2.4.
+
+### Results by strategy (mean over 12 seeds; brackets: min to max)
+
+| Strategy | Final auth rate | Net value / txn | Soft recovery | Recoveries per retry | Regret vs oracle |
+|---|---|---|---|---|---|
+| Static + failover | 87.18% [87.10, 87.25] | 7.138 [7.104, 7.154] | 0% | 0.874 | 114,169 |
+| Rule-based | 87.75% [87.67, 87.84] | 7.158 [7.124, 7.183] | 0% | 0.877 | 108,361 |
+| Naive: retry everything | 87.51% [87.40, 87.60] | 7.135 [7.104, 7.155] | 7.2% | 0.086 | 115,160 |
+| Static + rules recovery | 89.74% [89.66, 89.82] | 7.351 [7.320, 7.369] | 25.0% | 0.344 | 50,560 |
+| Adaptive (failover only) | 87.23% [87.05, 87.40] | 7.192 [7.151, 7.211] | 0% | 0.875 | 98,151 |
+| Adaptive + rules recovery | 89.75% [89.61, 89.92] | 7.393 [7.351, 7.415] | 24.7% | 0.334 | 37,726 |
+| **Adaptive + agent (stub)** | **89.72% [89.55, 89.88]** | **7.390 [7.347, 7.413]** | **24.2%** | 0.330 | 38,687 |
+| Oracle routing only | 87.49% [87.40, 87.59] | 7.311 [7.270, 7.332] | 0% | 0.874 | 62,496 |
+| Oracle (routing + recovery) | 90.12% [90.02, 90.17] | 7.519 [7.478, 7.545] | 24.9% | 0.362 | 0 |
+
+Recoveries per retry (retry efficiency) is higher is better; it falls with recovery because many more retries are speculative.
+
+### Paired differences (12 seeds)
+
+| Comparison | Net value / txn (95% CI) | Auth rate, points (95% CI) | Seeds better |
+|---|---|---|---|
+| Adaptive + agent vs static | +0.252 (0.247 to 0.256) | +2.54 (2.49 to 2.59) | 12 of 12 |
+| Adaptive + agent vs rule-based | +0.232 (0.225 to 0.239) | +1.96 (1.92 to 2.01) | 12 of 12 |
+| Adaptive (failover only) vs static | +0.053 (0.050 to 0.057) | +0.05 (-0.01 to 0.11) | 12 of 12 on value; 8 of 12 on auth |
+| Rules recovery vs failover-only (adaptive) | +0.201 (0.199 to 0.204) | +2.52 (2.50 to 2.55) | 12 of 12 |
+| Static + rules recovery vs static | +0.212 (0.210 to 0.214) | +2.56 (2.54 to 2.58) | 12 of 12 |
+| Routing on top of recovery (adaptive + rules vs static + rules) | +0.043 (0.038 to 0.048) | +0.02 (-0.04 to 0.07) | 12 of 12 on value |
+| **Agent vs rules-only (ablation)** | **-0.003 (-0.004 to -0.003)** | -0.04 (-0.04 to -0.03) | **0 of 12** |
+
+Attribution of the net-value gain of Adaptive + agent over static (+0.252): about +0.212 from rules recovery, +0.043 from adaptive routing,
+-0.003 from the stub agent.
+
+### Other metrics
+- **Share of oracle value**: Adaptive + agent captures 98.3% of the oracle's net value, static 94.9% (stub; mean of paired ratios).
+- **Regret vs oracle**: adaptive + agent has 66% lower cumulative regret than static (95% CI 65.0% to 67.2%).
+- **Net cost per approval** rises with recovery (1.565 vs 1.516 for static): recovered sales cost extra fees and retry costs, but each is worth more than it costs.
+- **Adaptation speed**: adaptive routers shift away from the degraded PSP_B in a median of **5,864** REGION_2 transactions after the drift (reached in 12 of 12 seeds); the oracle needs 2,000, the measurement floor. Rule-based and static never shift. The router is not tuned further for speed.
+- **Segment guardrail** (final auth rate worse than static by more than 0.5 points, segments with at least 200 transactions; mean count per seed, of 144): static 0, **adaptive failover-only 41.5**, rule-based 16.0 (worst segment up to -28 points: REGION_2, high amount, recurring, BIN_GROUP_3, where the coarse 18-cell rules, which ignore BIN group, send traffic to PSP_A, weak on large tickets and on that BIN group), oracle routing only 28.0, **adaptive + agent 2.4**, adaptive + rules 2.3. Averaging each segment across seeds first gives 33 worse segments for adaptive failover-only and 0 for adaptive + agent (`segment_guardrail.png`). Routing without recovery trades approvals for cost in about a quarter of segments; recovery removes that.
+
+### Agent: decision quality and cost (stub LLM, 12 seeds, about 12,500 ambiguous declines per run)
+| | Value |
+|---|---|
+| Exact match with oracle best action | 54.2% (soft causes 67.2%, technical 2.2%, hard 0.01%) |
+| Share of oracle value captured on ambiguous declines | 81.3% (rules default, delayed retry: 84.5%; always stop: 0%) |
+| Agent calls per 1,000 declines | 33.0 (10.6% of ambiguous declines; 89.4% served from cache) |
+| Fallbacks to rules | 0 |
+| Tool calls per agent call | 3.3 |
+| Tokens per call (estimated from characters) | about 453 in, 47 out |
+| Estimated cost per 1,000 declines at Opus-class list price | about 0.09 (indicative only) |
+| Latency | not measured (stub) |
+
+The ceiling is small: the rules default already captures 84.5% of the oracle value on ambiguous declines, which is worth about 0.2% of net value to any agent.
+
+### Failure analysis
+Five real bad agent decisions with root causes and fixes are in the Phase 4 section below (dev seeds, final stub). The pattern: technical declines
+that look like any other ambiguous decline (no observable signal outside incidents), a fixed rule order that lets "degraded PSP" override stronger
+evidence, and pooled retry estimates that ignore context. The labeled examples for the final run are in `agent_decision_examples.csv` and visible in the dashboard.
+
+## Limitations
+1. **Everything is simulated, and I wrote the simulator.** Effects such as card type mattering little, the delayed-retry payoff and the hidden causes are my assumptions. The 72-cell router win depends on card type being a weak signal in this world; a real merchant may differ.
+2. **The agent is a stub.** Claude's behaviour is unmeasured (no API key was available). The Claude client is unit-tested with a fake client only and has never run live. The stub's rules encode structure of the simulated world, so its scores overstate what a model without that knowledge would achieve. Token counts are estimates; latency is not measured.
+3. **Delayed retries are free** apart from a 15% customer drop-off for non-recurring customers. That makes "retry after a delay" a strong default and shrinks any agent's headroom.
+4. **One recovery attempt per decline**, no customer history dynamics, and `seconds_since_last_attempt` is always 0.
+5. **Simplified taxonomy.** Specific hard codes are perfectly reliable here; real response codes are messier and card-network rules change.
+6. **Baseline choice matters.** Static uses the best single PSP on this data (PSP_C). A weaker static choice would inflate every gain; the rule-based baseline uses coarse rules fitted on dev seeds.
+7. **Narrow intervals.** Twelve seeds with common random numbers give very tight intervals. They capture seed variance, not model risk.
+8. **Routing alone is a modest, slow-learning gain** at this volume (data-limited, see Phase 3), and it creates segment-level auth rate regressions unless paired with recovery. Whether to add an auth-rate floor to the objective is an open product question.
+9. **The oracle is myopic**: it picks the PSP by first-attempt value and ignores expected recovery value.

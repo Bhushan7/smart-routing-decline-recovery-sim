@@ -157,16 +157,79 @@ def agent_dev(n_seeds: int, n_txn: int) -> int:
     return 0
 
 
+def phase5_charts(out, cfg, n_seeds: int) -> None:
+    """Redraw the final charts from SAVED results (no simulation)."""
+    import pandas as pd
+
+    from src.analysis import summary as sm
+
+    summ = pd.read_csv(out / "summary.csv").set_index("strategy")
+    n = f"{n_seeds} frozen seeds, 300k txns"
+    ts = pd.read_csv(out / "timeseries.csv")
+    seg = pd.read_csv(out / "segment_auth.csv")
+    cost = pd.read_csv(out / "agent_cost.csv")
+    main_set = ["static", "rule_based", "adaptive", "adaptive_agent", "oracle_routing", "oracle"]
+    charts.comparison_chart(ts, cfg, out / "router_comparison.png", f"All routers vs oracle\n{n} (simulated)", main_set)
+    charts.adaptation_chart(ts, cfg, out / "adaptation_after_drift.png",
+                            f"Traffic to PSP_B in REGION_2\n{n} (simulated)",
+                            ["rule_based", "adaptive", "oracle_routing"])
+    charts.metric_panels(summ, out / "router_metrics.png", f"Headline metrics by strategy\n{n} (simulated)",
+                         [s for s in sm.ORDER if s in summ.index])
+    charts.guardrail_chart(seg, out / "segment_guardrail.png", f"Per-segment auth rate vs static\n{n} (simulated)",
+                           [("adaptive", "static"), ("adaptive_agent", "static")])
+    charts.agent_cost_chart(cost, out / "agent_cost.png", "Agent usage (stub LLM, simulated)")
+
+
+def phase5_final() -> int:
+    """Final evaluation: all strategies on FROZEN eval_seeds_v2, run once. Refuses to overwrite."""
+    import pandas as pd
+
+    from src.analysis import summary as sm
+
+    out = ROOT / "evals" / "results" / "phase5_final_eval"
+    if out.exists():
+        print(f"{out} exists. Frozen seeds are run once; delete it deliberately to rerun.")
+        return 1
+    cfg = SimConfig()
+    seeds = SEEDS["eval_seeds_v2"]
+    runner.run_final(cfg, seeds, out, seed_set="eval_seeds_v2 (frozen)")
+    df = pd.read_csv(out / "per_seed.csv")
+    summ = sm.summary_table(df)
+    summ.round(5).to_csv(out / "summary.csv")
+    paired = pd.concat([sm.paired(df, sm.PAIRS, "net_value_per_txn"),
+                        sm.paired(df, sm.PAIRS, "auth_rate_final", 100.0),
+                        sm.paired(df, sm.PAIRS, "soft_recovery_rate", 100.0)])
+    paired.round(5).to_csv(out / "paired_differences.csv", index=False)
+    hl = sm.headline(df)
+    (out / "headline.json").write_text(json.dumps(hl, indent=1))
+    phase5_charts(out, cfg, len(seeds))
+    print(json.dumps(hl, indent=1))
+    show = ["auth_rate_final_mean", "net_value_per_txn_mean", "soft_recovery_rate_mean", "retry_efficiency_mean",
+            "failed_retries_mean", "wasted_retries_hard_mean", "final_regret_vs_oracle_mean",
+            "segments_worse_than_static_mean", "adapt_txns_median"]
+    print(summ[show].round(4).T.to_string())
+    print(paired[paired.metric == "net_value_per_txn"].round(4).to_string())
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--smoke", action="store_true")
     ap.add_argument("--baselines", action="store_true")
     ap.add_argument("--phase3", action="store_true", help="(done) frozen eval_seeds, run once")
     ap.add_argument("--phase3b", action="store_true", help="eval_seeds_v2, run once")
+    ap.add_argument("--charts-only", action="store_true", help="redraw phase 5 charts from saved results")
+    ap.add_argument("--phase5", action="store_true", help="final eval on eval_seeds_v2, run once")
     ap.add_argument("--agent", action="store_true", help="Phase 4 agent eval on dev seeds (stub LLM)")
     ap.add_argument("--seeds", type=int, default=5)
     ap.add_argument("--n", type=int, default=300_000)
     a = ap.parse_args()
+    if a.charts_only:
+        out = ROOT / "evals" / "results" / "phase5_final_eval"
+        phase5_charts(out, SimConfig(), len(json.loads((out / "run_info.json").read_text())["seeds"]))
+        return 0
+    if a.phase5:
+        return phase5_final()
     if a.agent:
         return agent_dev(a.seeds, a.n)
     if a.phase3:

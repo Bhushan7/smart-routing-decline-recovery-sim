@@ -1,0 +1,25 @@
+comparison,metric,mean_diff,min,max,ci_lo,ci_hi,seeds_a_better,n_seeds
+adaptive_agent minus static,net_value_per_txn,0.25161,0.23832,0.26095,0.2472,0.25572,12,12
+adaptive_agent minus rule_based,net_value_per_txn,0.23225,0.20905,0.25088,0.22482,0.23931,12,12
+adaptive minus static,net_value_per_txn,0.05339,0.04306,0.0622,0.04952,0.05726,12,12
+adaptive_rules minus adaptive,net_value_per_txn,0.20142,0.19255,0.21047,0.19859,0.20417,12,12
+static_rules minus static,net_value_per_txn,0.21203,0.20264,0.21706,0.2096,0.21418,12,12
+adaptive_rules minus static_rules,net_value_per_txn,0.04278,0.03068,0.06114,0.03784,0.04778,12,12
+adaptive_agent minus adaptive_rules,net_value_per_txn,-0.0032,-0.00592,-0.0012,-0.00392,-0.00252,0,12
+adaptive_agent minus adaptive,net_value_per_txn,0.19821,0.18979,0.20841,0.19562,0.20099,12,12
+adaptive_agent minus static,auth_rate_final,2.53753,2.39467,2.683,2.48764,2.58834,12,12
+adaptive_agent minus rule_based,auth_rate_final,1.96378,1.84633,2.10733,1.92103,2.00614,12,12
+adaptive minus static,auth_rate_final,0.04906,-0.122,0.222,-0.01311,0.11303,8,12
+adaptive_rules minus adaptive,auth_rate_final,2.52422,2.465,2.59433,2.503,2.54639,12,12
+static_rules minus static,auth_rate_final,2.55875,2.48167,2.617,2.5398,2.57658,12,12
+adaptive_rules minus static_rules,auth_rate_final,0.01453,-0.12867,0.15633,-0.03731,0.06817,7,12
+adaptive_agent minus adaptive_rules,auth_rate_final,-0.03575,-0.06067,-0.01567,-0.04258,-0.02928,0,12
+adaptive_agent minus adaptive,auth_rate_final,2.48847,2.42933,2.56067,2.46678,2.512,12,12
+adaptive_agent minus static,soft_recovery_rate,24.16489,23.72579,24.6289,24.00558,24.33309,12,12
+adaptive_agent minus rule_based,soft_recovery_rate,24.16489,23.72579,24.6289,24.00558,24.33309,12,12
+adaptive minus static,soft_recovery_rate,0.0,0.0,0.0,0.0,0.0,0,12
+adaptive_rules minus adaptive,soft_recovery_rate,24.71544,24.39195,25.08902,24.58035,24.85146,12,12
+static_rules minus static,soft_recovery_rate,25.00793,24.40538,25.55905,24.834,25.17799,12,12
+adaptive_rules minus static_rules,soft_recovery_rate,-0.29249,-0.75784,0.18597,-0.41713,-0.16531,1,12
+adaptive_agent minus adaptive_rules,soft_recovery_rate,-0.55055,-0.86718,-0.26209,-0.63776,-0.46365,0,12
+adaptive_agent minus adaptive,soft_recovery_rate,24.16489,23.72579,24.6289,24.00558,24.33309,12,12

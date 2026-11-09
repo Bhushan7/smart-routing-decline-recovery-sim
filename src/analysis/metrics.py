@@ -32,6 +32,7 @@ def summarize(res: SimResult) -> dict:
         "net_value_total": float(res.value.sum()),
         "net_cost_per_approval": float((res.fees.sum() + res.retry_cost.sum()) / max(1, approvals)),
         "retries": retries,
+        "failed_retries": retries - recoveries,
         "recoveries": recoveries,
         "retry_efficiency": recoveries / retries if retries else float("nan"),
         "wasted_retries_hard": int((res.retried & hard).sum()),
@@ -97,3 +98,11 @@ def binned(res: SimResult, n_bins: int = 100) -> dict[str, np.ndarray]:
         "net_value": res.value[:cut].reshape(n_bins, k).mean(1),
         "value_sum": res.value[:cut].reshape(n_bins, k).sum(1),
     }
+
+
+def bootstrap_ci(values, n_boot: int = 10_000, seed: int = 0) -> tuple[float, float]:
+    """95% percentile bootstrap interval of the mean across seeds."""
+    v = np.asarray(values, dtype=float)
+    rng = np.random.default_rng(seed)
+    means = rng.choice(v, size=(n_boot, len(v)), replace=True).mean(axis=1)
+    return float(np.percentile(means, 2.5)), float(np.percentile(means, 97.5))
